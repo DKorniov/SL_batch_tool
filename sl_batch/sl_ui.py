@@ -27,35 +27,39 @@ class StudioLibraryUi(object):
         from maya import cmds
         from . import utils
 
-        # Попытка 1: Актуальное и старое API Studio Library
+        # Попытка 1: Актуальное API вашей версии Studio Library (через Singleton окна)
+        try:
+            window = None
+            # Сначала пробуем специфичный для Maya класс
+            try:
+                from studiolibrarymaya import mayalibrarywindow
+                window = mayalibrarywindow.MayaLibraryWindow.instance()
+            except ImportError:
+                pass
+            
+            # Если не вышло, пробуем базовый класс
+            if not window:
+                try:
+                    from studiolibrary import librarywindow
+                    window = librarywindow.LibraryWindow.instance()
+                except ImportError:
+                    pass
+
+            # Если окно найдено, берем путь так же, как это делает сама Studio Library
+            if window:
+                path = window.selectedFolderPath()
+                if not path:
+                    path = window.path()
+                    
+                if path and os.path.isdir(path):
+                    utils.info(u"Найден путь через API (LibraryWindow.instance): " + path)
+                    return path
+        except Exception as e:
+            utils.warn(u"Ошибка API Studio Library (instance): " + str(e))
+
+        # Попытка 2: Стандартное API (на случай, если скрипт запустят на другой версии SL)
         try:
             import studiolibrary
-            
-            # Пробуем через главное окно приложения
-            try:
-                main_app = studiolibrary.main()
-                if main_app:
-                    # Достаем путь из виджета папок
-                    try:
-                        path = main_app.libraryWidget().folderWidget().path()
-                        if path and os.path.isdir(path):
-                            utils.info(u"Найден путь через API (folderWidget): " + path)
-                            return path
-                    except Exception:
-                        pass
-                    
-                    # Альтернативный вариант через библиотеку
-                    try:
-                        paths = main_app.library().selectedPaths()
-                        if paths and os.path.isdir(paths[0]):
-                            utils.info(u"Найден путь через API (main_app.library): " + paths[0])
-                            return paths[0]
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-
-            # Классический fallback API (старые версии)
             lib = studiolibrary.library()
             if lib:
                 paths = lib.selectedPaths()
@@ -65,23 +69,22 @@ class StudioLibraryUi(object):
         except Exception:
             pass
 
-        # Попытка 2: Парсинг интерфейса (Qt Fallback)
+        # Попытка 3: Парсинг интерфейса (Qt Fallback)
         try:
             from PySide2 import QtWidgets
             win = self.main_window()
             if win:
-                # Ищем адресную строку (обычно это QLineEdit)
+                # Ищем адресную строку (обычно QLineEdit)
                 line_edits = win.findChildren(QtWidgets.QLineEdit)
                 for le in line_edits:
                     text = le.text()
-                    # Проверяем, что в текстовом поле действительно путь к директории
                     if text and os.path.isdir(text):
                         utils.info(u"Найден путь через PySide (QLineEdit): " + text)
                         return text
         except Exception as e:
             utils.warn(u"Ошибка поиска пути через PySide: " + str(e))
 
-        # Попытка 3: Фолбэк на ручной выбор (cmds.fileDialog2)
+        # Попытка 4: Фолбэк на ручной выбор (cmds.fileDialog2)
         utils.warn(u"Не удалось автоматически определить папку Studio Library. Выберите вручную.")
         sel = cmds.fileDialog2(cap="Select Studio Library Folder", fm=3)
         return sel[0] if sel else None
