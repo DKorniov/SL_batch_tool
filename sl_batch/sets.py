@@ -87,7 +87,19 @@ class SelectionSetService(object):
             if not chosen:
                 utils.warn(u"Сет не выбран.")
                 return None, []
-        objects = self.read_objects(chosen)
-        if not objects:
+                
+        raw_objects = self.read_objects(chosen)
+        if not raw_objects:
             utils.warn(u"В выбранном сете нет объектов.")
+            return chosen, []
+            
+        # Пропускаем сырые имена из set.json через резолвер
+        objects = mx.resolve_controls(raw_objects)
+        
+        # Проверяем, что удалось найти и предупреждаем, если есть потери контролов
+        if not objects:
+            utils.warn(u"В сцене не найдены контролы из выбранного сета (проверьте неймспейсы).")
+        elif len(objects) < len(raw_objects):
+            utils.warn(u"Найдена только часть контролов из сета (%d из %d)." % (len(objects), len(raw_objects)))
+            
         return chosen, objects

@@ -59,7 +59,6 @@ def install_patch():
     from .importers import AnimLoader, PoseApplier
     from .import_workflow import BatchImportWorkflow
 
-
     ui = StudioLibraryUi()
 
     # Экспорт
@@ -76,15 +75,11 @@ def install_patch():
     )
 
     # Импорт
-    from .import_workflow import BatchImportWorkflow
-
     import_wf = BatchImportWorkflow(
-    sets=SelectionSetService(),
-    ui=ui
+        sets=SelectionSetService(),
+        ui=ui
     )
 
-
-    # --- Добавляем общий контейнер с двумя кнопками ---
     try:
         from PySide2 import QtWidgets
     except Exception:
@@ -96,13 +91,22 @@ def install_patch():
         utils.warn("Studio Library window not found.")
         return
 
-    # Если обе кнопки уже есть — ничего не делаем
-    if win.findChild(QtWidgets.QPushButton, "BatchImportButton") and \
-       win.findChild(QtWidgets.QPushButton, "BatchExportButton"):
-        utils.info(u"Batch Import/Export уже установлены")
-        return
+    # --- УДАЛЕНИЕ СТАРОГО UI (ВМЕСТО БЛОКИРОВКИ) ---
+    old_container = win.findChild(QtWidgets.QWidget, "SLBatchButtonsContainer")
+    if old_container:
+        old_container.setParent(None)
+        old_container.deleteLater()
+    
+    # На всякий случай удаляем осиротевшие кнопки, если они остались от старых версий
+    for btn_name in ["BatchImportButton", "BatchExportButton"]:
+        old_btn = win.findChild(QtWidgets.QPushButton, btn_name)
+        if old_btn:
+            old_btn.setParent(None)
+            old_btn.deleteLater()
 
+    # --- СОЗДАНИЕ НОВОГО UI ---
     container = QtWidgets.QWidget(win)
+    container.setObjectName("SLBatchButtonsContainer") # Даем имя контейнеру, чтобы легко его находить и удалять
     hbox = QtWidgets.QHBoxLayout(container)
     hbox.setContentsMargins(0, 0, 0, 0)
     hbox.setSpacing(4)
@@ -129,4 +133,4 @@ def install_patch():
         layout = win.layout() or QtWidgets.QVBoxLayout(win)
         layout.insertWidget(0, container)
 
-    utils.info(u"<hl>Batch Import/Export установлены</hl>")
+    utils.info(u"<hl>Batch Import/Export успешно обновлены и установлены</hl>")

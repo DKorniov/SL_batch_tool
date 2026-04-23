@@ -1,17 +1,25 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 import os, shutil
+from maya import cmds
 from . import utils
 
 class AnimationExporter(object):
     def save_anim(self, objects, dst_dir, start, end, icon_file, sequence_dir):
         from mutils import animation as mu_animation
+        
+        # ЖЕСТКАЯ ФИЛЬТРАЦИЯ: отсекаем объекты, которых нет в сцене (отключенные референсы и т.д.)
+        valid_objects = [obj for obj in objects if cmds.objExists(obj)]
+        if not valid_objects:
+            utils.warn(u"Нет доступных контролов для экспорта анимации в: %s" % dst_dir)
+            return
+            
         utils.ensure_dir(dst_dir)
         meta = {"createdBy": "sl_batch_export", "time": [int(start), int(end)]}
         icon = icon_file if (icon_file and os.path.exists(icon_file)) else ""
         seq  = sequence_dir if (sequence_dir and os.path.isdir(sequence_dir)) else ""
         mu_animation.saveAnim(
-            objects=objects, path=dst_dir,
+            objects=valid_objects, path=dst_dir,
             time=(int(start), int(end)),
             fileType="mayaAscii",
             metadata=meta, iconPath=icon, sequencePath=seq,
@@ -23,6 +31,13 @@ class PoseExporter(object):
         from mutils import pose as mu_pose
         from . import maya_api as mx
         from . import config
+        
+        # ЖЕСТКАЯ ФИЛЬТРАЦИЯ: защищаем mutils от падения при экспорте позы
+        valid_objects = [obj for obj in objects if cmds.objExists(obj)]
+        if not valid_objects:
+            utils.warn(u"Нет доступных контролов для экспорта позы в: %s" % dst_dir)
+            return
+            
         utils.ensure_dir(dst_dir)
         pose_json = os.path.join(dst_dir, "pose.json")
 
@@ -30,7 +45,7 @@ class PoseExporter(object):
         try:
             cur = mx.current_time()
             mx.set_time(int(frame))
-            mu_pose.savePose(pose_json, objects=objects)
+            mu_pose.savePose(pose_json, objects=valid_objects)
         finally:
             if cur is not None:
                 mx.set_time(cur)

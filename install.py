@@ -18,19 +18,15 @@ BASE_PATH = r"{path}"
 if BASE_PATH not in sys.path:
     sys.path.append(BASE_PATH)
 
-def _reload_module(mod):
-    try:
-        import importlib
-        importlib.reload(mod)
-    except Exception:
-        try:
-            reload(mod)
-        except Exception:
-            pass
+# --- ЖЕСТКАЯ ОЧИСТКА КЭША (Hard Reload) ---
+# Удаляем все модули пакета sl_batch из памяти, заставляя Maya прочитать свежие файлы с диска
+for mod_name in list(sys.modules.keys()):
+    if mod_name.startswith('sl_batch'):
+        del sys.modules[mod_name]
 
 try:
+    # Загружаем скрипт с нуля
     import sl_batch.sl_ui as sl_ui
-    _reload_module(sl_ui)
     sl_ui.install_patch()
 except Exception as e:
     cmds.warning(u"Не удалось установить Batch Import/Export: %s" % e)
@@ -51,5 +47,5 @@ except Exception as e:
         style="iconOnly"
     )
     
-    cmds.inViewMessage(amg="<hl>SL Batch Tool</hl> успешно установлен на полку!", pos="topCenter", fade=True)
+    cmds.inViewMessage(amg="<hl>SL Batch Tool</hl> скрипт для полки успешно создан!", pos="topCenter", fade=True)
     print("\n[SL Batch Tool] Кнопка успешно добавлена на полку: {}".format(current_shelf))
